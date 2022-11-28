@@ -3,7 +3,7 @@
 #
 # grab some diags and hardware logs
 #
-VER=1.0
+VER=1.1
 CMD=$0
 BASE=${CMD##*/}
 TOK=${BASE}-`date +%Y-%m-%d`-`hostname`
@@ -50,24 +50,10 @@ report 'cat $CMD' hwcheck-v${VER}
 report 'uname -a' kernelreport
 report 'uptime' upreport
 report 'dmidecode' dmireport
-report 'dmesg' dmesgreport
-report 'last' lastreport
-report 'cat /etc/hosts' hostsreport
-report 'cat /proc/cmdline' cmdlinereport
-report 'cat /proc/meminfo' meminforeport
 report 'cat /etc/issue' issuereport
 report 'cat /etc/os-release' osreleasereport
-report 'find /var/log -ls' logreport
-report 'cat /var/log/messages' messagesreport
-report 'grep . /etc/cron.*/*' cronreport
 report 'lspci -mm' pcimmreport
 report 'lspci -vv' pcivvreport
-report 'find /etc -ls' etcreport
-report 'systemctl list-unit-files --type=service' servicereport
-report 'systemctl list-unit-files --type=timer' timerreport
-report 'systemctl list-unit-files --type=target' targetreport
-report 'rpm -qa' rpmreport
-report 'apt list --installed' aptreport
 
 # ipmitool
 report 'ipmitool mc info' bmcreport
@@ -98,13 +84,6 @@ report 'ls /dev/sg* | xargs -L 1 hdparm -I' identifyreport
 report 'ifconfig' netreport
 report 'ip add' net-add-report
 report 'ip ro' net-ro-report
-report 'ip rule' net-rule-report
-report 'ip tunnel' net-tunnel-report
-report 'cat /proc/net/bonding/*' net-bonding-report
-report 'arp -a' net-arp-report
-report 'iptables -L -n -x -v' net-tables-report
-report 'iptables-save' net-tables-save-report
-report 'lldpcli show neighbors detail' lldpreport
 report 'cat /etc/resolv.conf' dnsreport
 
 # bios
