@@ -1,0 +1,118 @@
+#!/bin/bash
+
+#
+# grab some diags and hardware logs
+#
+VER=1.0
+CMD=$0
+BASE=${CMD##*/}
+TOK=${BASE}-`date +%Y-%m-%d`-`hostname`
+OUT=/tmp/${TOK}
+[ -d ${OUT} ] || mkdir -p ${OUT}
+pushd ${OUT} &>/dev/null
+
+# make sure we have permission to run cmds
+if [ $UID -ne 0 ]; then echo -ne "\nrun using 'sudo $CMD' or as root\n\n"; exit -1; fi
+
+function report()
+{
+    cmd=$1
+    out=$2
+    [ -f $out ] && rm $out
+    touch $out
+
+    echo "running: $cmd"
+    echo "##" >> $out
+    echo "## $cmd" >> $out
+    echo "##" >> $out
+    echo "" >> $out
+    eval "$cmd" &>> $out
+}
+
+function wrapup()
+{
+    pushd /tmp &>/dev/null
+    name=${TOK}-`hostname -i |head -n1|cut -d' ' -f1| tr '.' '-'`.tbz
+    echo "running: tar jcvf ${name} ${TOK}"
+    tar jcvf ${name} ${TOK} >/dev/null
+    rm -rf ${OUT}
+
+    echo ""
+    echo "Find reports in tarball:"
+    echo "    /tmp/$name"
+    echo " "
+}
+
+# version stamp record of script used
+report 'cat $CMD' hwcheck-v${VER}
+
+# system
+report 'uname -a' kernelreport
+report 'uptime' upreport
+report 'dmidecode' dmireport
+report 'dmesg' dmesgreport
+report 'last' lastreport
+report 'cat /etc/hosts' hostsreport
+report 'cat /proc/cmdline' cmdlinereport
+report 'cat /proc/meminfo' meminforeport
+report 'cat /etc/issue' issuereport
+report 'cat /etc/os-release' osreleasereport
+report 'find /var/log -ls' logreport
+report 'cat /var/log/messages' messagesreport
+report 'grep . /etc/cron.*/*' cronreport
+report 'lspci -mm' pcimmreport
+report 'lspci -vv' pcivvreport
+report 'find /etc -ls' etcreport
+report 'systemctl list-unit-files --type=service' servicereport
+report 'systemctl list-unit-files --type=timer' timerreport
+report 'systemctl list-unit-files --type=target' targetreport
+report 'rpm -qa' rpmreport
+report 'apt list --installed' aptreport
+
+# ipmitool
+report 'ipmitool mc info' bmcreport
+report 'ipmitool fru' frureport
+report 'ipmitool sel elist' selreport
+report 'ipmitool sdr elist' sdrreport
+report 'ipmitool lan print 1' ipmi1report
+report 'ipmitool lan print 8' ipmi8report
+
+# storage
+report 'df' dfreport
+report 'cat /proc/*/mounts' mountreport
+report 'cat /proc/scsi/scsi' scsireport
+report 'sar -d -j label' sarreport
+report 'ls -l /dev/disk/by-id' idreport
+report 'cat /proc/mdstat' mdreport
+report 'modinfo mptsas mpt2sas' sasreport
+report 'grep . /sys/class/scsi_host/*/*ver*' hbareport
+report 'sas2flash -listall' flashreport
+report 'sas2flash -list' lsireport
+report 'ls /dev/sg* | xargs -L 1 smartctl -T permissive --all' smartreport
+report 'ls /dev/sg* | xargs -L 1 -t sg_ses --page=0x02' ses02report
+report 'ls /dev/sg* | xargs -L 1 -t sg_ses --page=0x91' ses91report
+report 'ls /dev/sg* | xargs -L 1 sdparm -a' parmreport
+report 'ls /dev/sg* | xargs -L 1 hdparm -I' identifyreport
+
+# network
+report 'ifconfig' netreport
+report 'ip add' net-add-report
+report 'ip ro' net-ro-report
+report 'ip rule' net-rule-report
+report 'ip tunnel' net-tunnel-report
+report 'cat /proc/net/bonding/*' net-bonding-report
+report 'arp -a' net-arp-report
+report 'iptables -L -n -x -v' net-tables-report
+report 'iptables-save' net-tables-save-report
+report 'lldpcli show neighbors detail' lldpreport
+report 'cat /etc/resolv.conf' dnsreport
+
+# bios
+report 'syscfg /s /tmp/config-syscfg.ini' cfgreport
+report 'cat /tmp/config-syscfg.ini' inireport
+
+# mstflint mellanox
+report 'for device in $(lspci -d 15b3: | cut -d. -f1 | sort -u); do mstflint -d ${device}.0 q ; done' mstflintreport
+
+# package the reports
+wrapup
