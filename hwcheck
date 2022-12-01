@@ -3,9 +3,10 @@
 #
 # grab some diags and hardware logs
 #
-VER=1.1
+VER=1.2
 CMD=$0
 BASE=${CMD##*/}
+if [[ $CMD =~ \./* ]]; then CMD=$PWD/$BASE ; fi
 TOK=${BASE}-`date +%Y-%m-%d`-`hostname`
 OUT=/tmp/${TOK}
 [ -d ${OUT} ] || mkdir -p ${OUT}
@@ -43,6 +44,30 @@ function wrapup()
     echo " "
 }
 
+#dependencies=( ipmitool sar sas2flash smartctl sg_ses sdparm hdparm mstflint )
+dependencies=( ipmitool sar sdparm hdparm mstflint ethtool )
+
+function checkdeps()
+{
+    missing=0
+    for dep in ${dependencies[@]}; do
+	which $dep &>/dev/null
+	if [ $? -ne 0 ]; then
+	    echo "Unable to find command in path: $dep"
+	    missing=1
+	fi
+    done
+    if [ $missing -ne 0 ]; then
+	echo ""
+	echo "Some commands were missing and tool output will be abbreviated"
+	echo ""
+	sleep 1
+    fi
+}
+
+# test for exec that we use to inform
+checkdeps
+
 # version stamp record of script used
 report 'cat $CMD' hwcheck-v${VER}
 
@@ -65,18 +90,20 @@ report 'ipmitool lan print 8' ipmi8report
 
 # storage
 report 'df' dfreport
-report 'cat /proc/*/mounts' mountreport
+#report 'cat /proc/*/mounts' mountreport
+report 'mount' mountreport
 report 'cat /proc/scsi/scsi' scsireport
+report 'lsscsi -g' lsscsireport
 report 'sar -d -j label' sarreport
 report 'ls -l /dev/disk/by-id' idreport
-report 'cat /proc/mdstat' mdreport
-report 'modinfo mptsas mpt2sas' sasreport
-report 'grep . /sys/class/scsi_host/*/*ver*' hbareport
-report 'sas2flash -listall' flashreport
-report 'sas2flash -list' lsireport
-report 'ls /dev/sg* | xargs -L 1 smartctl -T permissive --all' smartreport
-report 'ls /dev/sg* | xargs -L 1 -t sg_ses --page=0x02' ses02report
-report 'ls /dev/sg* | xargs -L 1 -t sg_ses --page=0x91' ses91report
+#report 'cat /proc/mdstat' mdreport
+#report 'modinfo mptsas mpt2sas' sasreport
+#report 'grep . /sys/class/scsi_host/*/*ver*' hbareport
+#report 'sas2flash -listall' flashreport
+#report 'sas2flash -list' lsireport
+#report 'ls /dev/sg* | xargs -L 1 smartctl -T permissive --all' smartreport
+#report 'ls /dev/sg* | xargs -L 1 -t sg_ses --page=0x02' ses02report
+#report 'ls /dev/sg* | xargs -L 1 -t sg_ses --page=0x91' ses91report
 report 'ls /dev/sg* | xargs -L 1 sdparm -a' parmreport
 report 'ls /dev/sg* | xargs -L 1 hdparm -I' identifyreport
 
@@ -84,11 +111,14 @@ report 'ls /dev/sg* | xargs -L 1 hdparm -I' identifyreport
 report 'ifconfig' netreport
 report 'ip add' net-add-report
 report 'ip ro' net-ro-report
-report 'cat /etc/resolv.conf' dnsreport
+report 'ip -d link' net-link-report
+report 'for ifpath in /sys/class/net/*; do ifname=${ifpath##*/}; if [ $ifname == lo ]; then continue; fi ; echo -ne "\n${ifname}\n========\n" ; ethtool $ifname ; done' ethtool-report
+report 'for ifpath in /sys/class/net/*; do ifname=${ifpath##*/}; if [ $ifname == lo ]; then continue; fi ; echo -ne "\n${ifname}\n========\n" ; ethtool -i $ifname ; done' ethtool-i-report
+report 'for ifpath in /sys/class/net/*; do ifname=${ifpath##*/}; if [ $ifname == lo ]; then continue; fi ; echo -ne "\n${ifname}\n========\n" ; ethtool -m $ifname ; done' ethtool-m-report
 
 # bios
-report 'syscfg /s /tmp/config-syscfg.ini' cfgreport
-report 'cat /tmp/config-syscfg.ini' inireport
+#report 'syscfg /s /tmp/config-syscfg.ini' cfgreport
+#report 'cat /tmp/config-syscfg.ini' inireport
 
 # mstflint mellanox
 report 'for device in $(lspci -d 15b3: | cut -d. -f1 | sort -u); do mstflint -d ${device}.0 q ; done' mstflintreport
